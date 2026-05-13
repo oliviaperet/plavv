@@ -13,14 +13,12 @@ serve(async (req) => {
   }
 
   try {
-    const { toEmail, fullName, eventTitle, eventDate, eventLocation, qrCode, replyTo } = await req.json();
+    const { toEmail, fullName, eventTitle, eventDate, eventLocation, replyTo } = await req.json();
 
     const apiKey = Deno.env.get("BREVO_API_KEY");
     if (!apiKey) throw new Error("BREVO_API_KEY non configurée");
 
     const organizerEmail: string | undefined = replyTo || undefined;
-
-    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCode)}&size=250x250`;
 
     const res = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
@@ -31,29 +29,28 @@ serve(async (req) => {
       body: JSON.stringify({
         sender: { name: "GuestEvent", email: "olivia.peret@esme.fr" },
         to: [{ email: toEmail, name: fullName }],
-        subject: `🎟️ Votre billet — ${eventTitle}`,
+        subject: `Événement annulé — ${eventTitle}`,
         ...(organizerEmail && { replyTo: { email: organizerEmail } }),
         htmlContent: `
           <div style="font-family:Inter,sans-serif;max-width:560px;margin:0 auto;color:#2C2C2A">
             <div style="background:linear-gradient(135deg,#EED4D8,#C87488);padding:32px;border-radius:12px 12px 0 0;text-align:center">
-              <h1 style="font-family:Georgia,serif;font-size:32px;font-style:italic;color:#72243E;margin:0">
-                ${eventTitle}
+              <h1 style="font-family:Georgia,serif;font-size:28px;color:#72243E;margin:0">
+                Événement annulé
               </h1>
             </div>
             <div style="background:#FDFAF7;padding:32px;border:1px solid #D5A0A8;border-top:none;border-radius:0 0 12px 12px">
               <p style="margin:0 0 8px">Bonjour <strong>${fullName}</strong>,</p>
-              <p style="margin:0 0 24px;color:#72243E">Votre inscription est confirmée !</p>
+              <p style="margin:0 0 24px">Nous vous informons que l'événement auquel vous étiez inscrit(e) a été <strong>annulé</strong>.</p>
               <div style="background:#EED4D8;border-radius:8px;padding:16px;margin-bottom:24px">
-                <p style="margin:4px 0">📅 <strong>${eventDate}</strong></p>
-                <p style="margin:4px 0">📍 <strong>${eventLocation}</strong></p>
+                <p style="margin:4px 0;font-size:18px;font-weight:600;color:#72243E">${eventTitle}</p>
+                <p style="margin:8px 0 4px">📅 ${eventDate}</p>
+                <p style="margin:4px 0">📍 ${eventLocation}</p>
               </div>
-              <p style="text-align:center;font-weight:500;margin-bottom:12px">Votre QR code d'entrée :</p>
-              <div style="text-align:center;background:#fff;padding:16px;border-radius:8px;border:1px solid #D5A0A8">
-                <img src="${qrImageUrl}" width="200" height="200" alt="QR code" style="display:block;margin:0 auto" />
-                <p style="font-family:monospace;font-size:11px;color:#888;margin:8px 0 0">${qrCode}</p>
-              </div>
+              <p style="color:#666;font-size:14px">
+                Votre inscription a été automatiquement annulée. Si vous avez payé, un remboursement sera effectué dans les meilleurs délais.
+              </p>
               <p style="margin-top:24px;font-size:13px;color:#888;text-align:center">
-                Présentez ce QR code à l'entrée · GuestEvent
+                Nous nous excusons pour la gêne occasionnée · GuestEvent
               </p>
             </div>
           </div>
@@ -66,7 +63,6 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: res.ok ? 200 : 400,
     });
-
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
